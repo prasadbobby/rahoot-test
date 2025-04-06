@@ -1,12 +1,11 @@
+// src/context/player.jsx
 import { createContext, useContext, useReducer, useEffect } from "react";
 import { toast } from "react-hot-toast";
 
 const PlayerContext = createContext();
 
 export function playerReducer(state, action) {
-  console.group("Player Reducer");
-  console.log("Action Type:", action.type);
-  console.log("Payload:", action.payload);
+  console.log("Player Action:", action.type, action.payload);
 
   switch (action.type) {
     case "JOIN":
@@ -19,31 +18,55 @@ export function playerReducer(state, action) {
         }
       };
       
-      console.log("New Player State:", newState);
-      
       // Persist to localStorage
       try {
         if (typeof window !== 'undefined') {
           localStorage.setItem('rahootPlayer', JSON.stringify(newState.player));
         }
       } catch (error) {
-        console.error("Error saving player to localStorage:", error);
+        console.error("Error saving player:", error);
       }
       
-      console.groupEnd();
       return newState;
     
-    // Other cases remain the same
+    case "UPDATE":
+      if (!state.player) return state;
+      
+      const updatedPlayer = {
+        ...state.player,
+        ...action.payload
+      };
+      
+      // Update localStorage
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rahootPlayer', JSON.stringify(updatedPlayer));
+        }
+      } catch (error) {
+        console.error("Error updating player:", error);
+      }
+      
+      return { player: updatedPlayer };
+    
+    case "LOGOUT":
+      // Clear localStorage
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('rahootPlayer');
+        }
+      } catch (error) {
+        console.error("Error removing player:", error);
+      }
+      
+      return { player: null };
+    
     default:
-      console.groupEnd();
       return state;
   }
 }
-export function PlayerContextProvider({ children }) {
-  const initialState = { 
-    player: null 
-  };
 
+export function PlayerContextProvider({ children }) {
+  const initialState = { player: null };
   const [state, dispatch] = useReducer(playerReducer, initialState);
   
   // Load player from localStorage on client-side
@@ -51,51 +74,45 @@ export function PlayerContextProvider({ children }) {
     try {
       if (typeof window !== 'undefined') {
         const storedPlayer = localStorage.getItem('rahootPlayer');
-        console.log("Stored Player Raw:", storedPlayer);
+        console.log("Loading stored player:", storedPlayer);
         
         if (storedPlayer) {
           try {
             const parsedPlayer = JSON.parse(storedPlayer);
-            console.log("Parsed Player:", parsedPlayer);
             
-            // More robust state restoration
-            if (parsedPlayer.gameInstance && parsedPlayer.gameInstance.pinCode) {
+            if (parsedPlayer) {
               dispatch({ 
                 type: "JOIN", 
                 payload: {
                   username: parsedPlayer.username,
-                  roomId: parsedPlayer.gameInstance.pinCode,
+                  roomId: parsedPlayer.room || parsedPlayer.gameInstance?.pinCode,
                   gameInstance: parsedPlayer.gameInstance
                 }
               });
             }
-          } catch (parseError) {
-            console.error("Error parsing stored player:", parseError);
+          } catch (error) {
+            console.error("Error parsing stored player:", error);
             localStorage.removeItem('rahootPlayer');
           }
         }
       }
     } catch (error) {
-      console.error("Error loading player from localStorage:", error);
+      console.error("Error loading player:", error);
     }
   }, []);
 
   return (
-    <PlayerContext.Provider
-      value={{
-        ...state,
-        dispatch,
-      }}
-    >
+    <PlayerContext.Provider value={{ ...state, dispatch }}>
       {children}
     </PlayerContext.Provider>
   );
 }
+
 export function usePlayerContext() {
   const context = useContext(PlayerContext);
   
   if (context === undefined) {
-    throw new Error("usePlayerContext must be used inside a PlayerContextProvider");
+    throw new Error("usePlayerContext must be used within a PlayerContextProvider");
   }
   
   return context;

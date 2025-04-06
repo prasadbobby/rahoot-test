@@ -40,6 +40,8 @@ export default function GameWrapper({ children, textNext, onNext, manager }) {
   }, [dispatch, router, socket])
 
   const handleNextClick = () => {
+    if (isLoading) return;
+    
     setIsLoading(true)
     onNext()
     setTimeout(() => setIsLoading(false), 1000)
@@ -68,7 +70,7 @@ export default function GameWrapper({ children, textNext, onNext, manager }) {
           </motion.div>
         )}
 
-        {manager && (
+        {manager && textNext && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}

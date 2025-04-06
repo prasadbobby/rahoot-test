@@ -28,7 +28,7 @@ export const ANSWERS_ICONS = [Triangle, Rhombus, Circle, Square]
 export const GAME_STATES = {
   status: {
     name: "WAIT",
-    data: { text: "Waiting for the players" },
+    data: { text: "Waiting for the game to start" },
   },
   question: {
     current: 1,
@@ -54,6 +54,7 @@ export const GAME_STATE_COMPONENTS_MANAGER = {
   FINISH: Podium,
 }
 
+// Sound effect paths
 export const SFX_ANSWERS_MUSIC = "/sounds/answersMusic.mp3"
 export const SFX_ANSWERS_SOUND = "/sounds/answersSound.mp3"
 export const SFX_RESULTS_SOUND = "/sounds/results.mp3"

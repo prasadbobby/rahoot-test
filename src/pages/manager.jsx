@@ -1,34 +1,38 @@
 // src/pages/manager.jsx
-import Button from "@/components/Button"
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import GameWrapper from "@/components/game/GameWrapper"
 import ManagerPassword from "@/components/ManagerPassword"
 import { GAME_STATES, GAME_STATE_COMPONENTS_MANAGER } from "@/constants"
 import { useSocketContext } from "@/context/socket"
-import { createElement, useEffect, useState } from "react"
+import { createElement } from "react"
 import toast from "react-hot-toast"
 
 export default function Manager() {
-  const { socket, connected, reconnect } = useSocketContext()
-  const [nextText, setNextText] = useState("Start")
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const { socket, connected, reconnect } = useSocketContext();
+  const [nextText, setNextText] = useState("Start");
+  const [loading, setLoading] = useState(false);
   const [state, setState] = useState({
     ...GAME_STATES,
     status: {
       ...GAME_STATES.status,
-      name: "SHOW_ROOM",
+      name: "WAIT",
+      data: { text: "Initializing game..." }
     },
     created: false
-  })
+  });
+  const [gamePin, setGamePin] = useState(null);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !connected) return;
     
-    // Listen for invite code
+    // Set up event listeners
     const handleInviteCode = (inviteCode) => {
       console.log("Received room invite code:", inviteCode);
       setLoading(false);
+      setGamePin(inviteCode);
       
-      // Update state with room information
       setState(prevState => ({
         ...prevState,
         created: true,
@@ -44,7 +48,6 @@ export default function Manager() {
       toast.success(`Game room created with PIN: ${inviteCode}`);
     };
     
-    // Listen for game status updates
     const handleGameStatus = (status) => {
       console.log("Received game status:", status.name);
       
@@ -59,7 +62,7 @@ export default function Manager() {
       
       // Update next button text based on game state
       if (status.name === "SHOW_ROOM") {
-        setNextText("Start");
+        setNextText("Start Game");
       } else if (status.name === "SELECT_ANSWER") {
         setNextText("Skip");
       } else if (status.name === "SHOW_RESPONSES") {
@@ -71,52 +74,29 @@ export default function Manager() {
       }
     };
     
-    // Handle errors
-    const handleError = (message) => {
-      console.error("Game error:", message);
-      toast.error(message);
+    const handleHostError = (error) => {
       setLoading(false);
+      toast.error(error);
     };
     
-    // Handle connection events to maintain game state
-    const handleConnect = () => {
-      console.log("Socket connected or reconnected");
-      // If we were previously in a game but got disconnected, try to rejoin
-      if (state.created && state.status.data?.inviteCode) {
-        console.log("Attempting to rejoin room:", state.status.data.inviteCode);
-        toast("Reconnected. Attempting to restore game session...", {
-          icon: '🔄',
-        });
-      }
-    };
-    
-    // Set up event listeners
-    socket.on("connect", handleConnect);
     socket.on("manager:inviteCode", handleInviteCode);
+    socket.on("manager:hostingRoom", handleInviteCode);
     socket.on("game:status", handleGameStatus);
-    socket.on("game:errorMessage", handleError);
+    socket.on("game:errorMessage", handleHostError);
+    socket.on("manager:hostError", handleHostError);
     
-    // Clean up on unmount
     return () => {
-      socket.off("connect", handleConnect);
       socket.off("manager:inviteCode", handleInviteCode);
+      socket.off("manager:hostingRoom", handleInviteCode);
       socket.off("game:status", handleGameStatus);
-      socket.off("game:errorMessage", handleError);
+      socket.off("game:errorMessage", handleHostError);
+      socket.off("manager:hostError", handleHostError);
     };
-  }, [socket, state.created]);
-
-  // Check if connection is lost and show reconnection option
-  useEffect(() => {
-    if (!connected && state.created) {
-      toast.error("Connection to server lost. Game management may be affected.");
-    }
-  }, [connected, state.created]);
+  }, [socket, connected]);
 
   const handleCreate = () => {
     if (state.created) {
-      toast(`Game room already created with PIN: ${state.status.data?.inviteCode}`, {
-        icon: 'ℹ️',
-      });
+      toast.info(`Game room already created with PIN: ${gamePin}`);
       return;
     }
     
@@ -128,35 +108,32 @@ export default function Manager() {
     
     setLoading(true);
     
-    // Generate a 6-digit PIN
-    const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate a random PIN
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
     
-    console.log("Emitting manager:hostRoom with PIN:", gamePin);
+    // Emit host request
     socket.emit("manager:hostRoom", { 
-      pin: gamePin,
+      pin,
       token: localStorage.getItem('rahootAuthToken') || "anonymous"
     });
     
-    // Set a timeout in case of no response
+    // Set a timeout for no response
     setTimeout(() => {
-      setLoading((isStillLoading) => {
-        if (isStillLoading) {
-          toast.error("Request timed out. Please try again.");
-          return false;
-        }
-        return isStillLoading;
-      });
+      if (loading) {
+        setLoading(false);
+        toast.error("Request timed out. Please try again.");
+      }
     }, 5000);
   };
 
-  const handleSkip = () => {
+  const handleAction = () => {
     if (!connected) {
       toast.error("Not connected to game server");
       reconnect && reconnect();
       return;
     }
     
-    console.log("Skip button clicked, current state:", state.status.name);
+    console.log("Action button clicked, current state:", state.status.name);
     
     switch (state.status.name) {
       case "SHOW_ROOM":
@@ -176,19 +153,30 @@ export default function Manager() {
         break;
         
       case "FINISH":
-        // Reset the game and create a new room
         socket.emit("manager:resetGame");
+        setState({
+          ...GAME_STATES,
+          status: {
+            ...GAME_STATES.status,
+            name: "WAIT",
+            data: { text: "Resetting game..." }
+          },
+          created: false
+        });
+        setGamePin(null);
         setTimeout(() => {
           handleCreate();
         }, 1000);
         break;
+        
+      default:
+        toast.info("No action available");
+        break;
     }
-    
-    toast.success("Action processed");
-  }
+  };
 
   // Show reconnection UI if disconnected
-  if (!connected && !state.created) {
+  if (!connected && gamePin) {
     return (
       <section className="relative flex min-h-screen flex-col items-center justify-center">
         <div className="absolute h-full w-full overflow-hidden">
@@ -199,11 +187,20 @@ export default function Manager() {
         <div className="z-10 flex w-full max-w-80 flex-col gap-4 rounded-lg bg-white p-6 shadow-card">
           <h2 className="text-xl font-bold text-center mb-2">Connection Error</h2>
           <p className="text-gray-600 text-center mb-4">
-            Cannot connect to game server. Please check your network connection.
+            Lost connection to game server. Your current game PIN is: {gamePin}
           </p>
-          <Button onClick={reconnect}>
-            Reconnect
-          </Button>
+          <button 
+            onClick={reconnect}
+            className="btn-shadow rounded-md bg-primary p-2 text-lg font-semibold text-white transition-all hover:bg-primary-dark"
+          >
+            <span>Reconnect</span>
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="btn-shadow rounded-md bg-gray-200 p-2 text-lg font-semibold text-gray-700 transition-all hover:bg-gray-300"
+          >
+            <span>Return Home</span>
+          </button>
         </div>
       </section>
     );
@@ -212,19 +209,15 @@ export default function Manager() {
   return (
     <>
       {!state.created ? (
-        <div>
-          <ManagerPassword onSubmit={handleCreate} loading={loading} />
-        </div>
+        <ManagerPassword onSubmit={handleCreate} loading={loading} />
       ) : (
-        <>
-          <GameWrapper textNext={nextText} onNext={handleSkip} manager>
-            {GAME_STATE_COMPONENTS_MANAGER[state.status.name] &&
-              createElement(GAME_STATE_COMPONENTS_MANAGER[state.status.name], {
-                data: state.status.data,
-              })}
-          </GameWrapper>
-        </>
+        <GameWrapper textNext={nextText} onNext={handleAction} manager>
+          {GAME_STATE_COMPONENTS_MANAGER[state.status.name] &&
+            createElement(GAME_STATE_COMPONENTS_MANAGER[state.status.name], {
+              data: state.status.data,
+            })}
+        </GameWrapper>
       )}
     </>
-  )
+  );
 }

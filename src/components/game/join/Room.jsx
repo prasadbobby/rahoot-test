@@ -1,8 +1,9 @@
+// src/components/game/join/Room.jsx
 import { usePlayerContext } from "@/context/player"
 import Form from "@/components/Form"
 import Button from "@/components/Button"
 import Input from "@/components/Input"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useSocketContext } from "@/context/socket"
 import { useRouter } from "next/router"
 import toast from "react-hot-toast"
@@ -10,7 +11,7 @@ import toast from "react-hot-toast"
 export default function Room() {
   const router = useRouter();
   const { socket, connected } = useSocketContext()
-  const { player, dispatch } = usePlayerContext()
+  const { dispatch } = usePlayerContext()
   const [roomId, setRoomId] = useState("")
   const [username, setUsername] = useState("")
   const [loading, setLoading] = useState(false)
@@ -31,71 +32,83 @@ export default function Room() {
     console.log("Attempting to join room:", roomId);
     setLoading(true);
 
-    // Emit room check
+    // First check if room exists
     socket.emit("player:checkRoom", roomId);
 
-    // Room check timeout
+    // Set up event handlers
     const checkTimeout = setTimeout(() => {
       setLoading(false);
-      toast.error("Room check timed out");
+      toast.error("No response from server");
+      cleanup();
     }, 5000);
 
-    // Room check handler
-    const handleRoomSuccess = () => {
+    function cleanup() {
       clearTimeout(checkTimeout);
-      
-      // Emit join request
-      socket.emit("player:join", { 
-        gamePin: roomId, 
-        username: playerUsername
-      });
-    };
+      socket.off("game:successRoom");
+      socket.off("game:errorMessage");
+      socket.off("game:successJoin");
+      socket.off("player:join-response");
+    }
 
-    const handleRoomError = (message) => {
-      clearTimeout(checkTimeout);
+    // Room check handler
+    socket.once("game:successRoom", () => {
+      console.log("Room exists, attempting to join");
+      
+      // Room exists, now try to join
+      socket.emit("player:join", { 
+        username: playerUsername, 
+        room: roomId,
+        gamePin: roomId // Add both formats to be safe
+      });
+      
+      // Listen for successful join
+      socket.once("game:successJoin", () => {
+        cleanup();
+        console.log("Successfully joined room");
+        
+        dispatch({
+          type: "JOIN",
+          payload: {
+            username: playerUsername,
+            roomId: roomId,
+            gameInstance: { pinCode: roomId }
+          }
+        });
+        
+        setLoading(false);
+        router.push("/play");
+      });
+      
+      // Listen for server response (newer format)
+      socket.once("player:join-response", (response) => {
+        cleanup();
+        console.log("Join response:", response);
+        setLoading(false);
+        
+        if (response.success) {
+          dispatch({
+            type: "JOIN",
+            payload: {
+              username: playerUsername,
+              roomId: roomId,
+              gameInstance: response.gameInstance
+            }
+          });
+          
+          router.push("/play");
+        } else {
+          toast.error(response.message || "Failed to join game");
+        }
+      });
+    });
+
+    // Error handler
+    socket.once("game:errorMessage", (message) => {
+      cleanup();
       setLoading(false);
       toast.error(message);
-    };
-
-    socket.once("game:successRoom", handleRoomSuccess);
-    socket.once("game:errorMessage", handleRoomError);
+    });
   };
-
-  // Join response handler
-  useEffect(() => {
-    const handleJoinResponse = (response) => {
-      console.log("Join Response:", response);
-      setLoading(false);
-
-      if (response.success) {
-        console.log("Join successful, dispatching player state");
-        
-        // Dispatch player join action with full game instance
-        dispatch({ 
-          type: "JOIN", 
-          payload: { 
-            username: response.gameInstance.players.find(p => p.username)?.username, 
-            roomId: response.gameInstance.pinCode,
-            gameInstance: response.gameInstance
-          } 
-        });
-
-        // Navigate to play page
-        router.push("/play").catch(err => {
-          console.error("Navigation Error:", err);
-          toast.error("Failed to navigate to game");
-        });
-      } else {
-        toast.error(response.message || "Failed to join game");
-      }
-    };
-
-    socket.on("player:join-response", handleJoinResponse);
-
-    return () => {
-      socket.off("player:join-response", handleJoinResponse);
-    };
-  }, [dispatch, router, socket]);
 
   return (
     <Form className="max-w-96">

@@ -7,6 +7,14 @@
       "password": "$2b$10$D7bS3y4wTibvE.Le4scpI.W33N2jATHjR8l78SyPlZXZ8N0SboPYG",
       "role": "admin",
       "createdAt": "2025-04-06T05:03:19.716Z"
+    },
+    {
+      "id": "473feb8a-c475-4da5-ac14-de224ff1ce1f",
+      "username": "user1",
+      "email": "user@bob.com",
+      "password": "$2b$10$kd5UWRR7k1gcwRqSQ3tvw.hv4ztFHfADSYFKPX4nZMNEIrq6nN4PO",
+      "role": "user",
+      "createdAt": "2025-04-06T19:18:36.311Z"
     }
   ],
   "googleUsers": [],
@@ -1287,6 +1295,524 @@
         }
       ],
       "createdAt": "2025-04-06T08:42:19.451Z"
+    },
+    {
+      "id": "09c3dcc3-f7c4-4b88-8702-1c8a6952f321",
+      "quizId": "67bbaa01-b233-4665-8be5-701b3b521b0f",
+      "hostId": "3d6e7ee5-54ca-4b95-9866-f3264baa1062",
+      "gamePin": "379728",
+      "title": "tes",
+      "questions": [
+        {
+          "question": "a",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 0
+        },
+        {
+          "question": "b",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 1
+        }
+      ],
+      "status": "waiting",
+      "players": [
+        {
+          "id": "4JXpBfjpoyfQ6jewAAAE",
+          "username": "asdsadsad",
+          "score": 0,
+          "answers": []
+        }
+      ],
+      "createdAt": "2025-04-06T18:41:46.815Z"
+    },
+    {
+      "id": "2050bcd6-1a77-4fa1-a91b-f3f07acbb50e",
+      "quizId": "67bbaa01-b233-4665-8be5-701b3b521b0f",
+      "hostId": "3d6e7ee5-54ca-4b95-9866-f3264baa1062",
+      "gamePin": "579497",
+      "title": "tes",
+      "questions": [
+        {
+          "question": "a",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 0
+        },
+        {
+          "question": "b",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 1
+        }
+      ],
+      "status": "waiting",
+      "players": [
+        {
+          "id": "urQrenC1m5-xrvhCAAAK",
+          "username": "Bobbyyy",
+          "score": 0,
+          "answers": []
+        }
+      ],
+      "createdAt": "2025-04-06T18:53:27.914Z"
+    },
+    {
+      "id": "5c60c680-91d8-4b7a-bea0-cc2c0cb2512f",
+      "hostId": "9MaUMGmawVxyrF6UAAAM",
+      "pinCode": "579497",
+      "gamePin": "579497",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T18:55:52.078Z"
+    },
+    {
+      "id": "6ad39390-84dc-49c5-9e29-61b7aa0a38e0",
+      "hostId": "ZkJxltpydf0iiS7oAAAP",
+      "pinCode": "579497",
+      "gamePin": "579497",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:01:28.199Z"
+    },
+    {
+      "id": "5b5965f7-8166-4d71-a8df-dbb44dc87daa",
+      "hostId": "0zoylOpNyNUJhChiAAAJ",
+      "pinCode": "579497",
+      "gamePin": "579497",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:01:42.812Z"
+    },
+    {
+      "id": "04033e56-af07-4e86-8c8d-e5da7a1d4ad9",
+      "hostId": "drMsi0xq4QybcFEPAAAP",
+      "pinCode": "579497",
+      "gamePin": "579497",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:01:54.834Z"
+    },
+    {
+      "id": "d8c669cd-983c-42c7-bd7e-69fdd468e7bf",
+      "quizId": "67bbaa01-b233-4665-8be5-701b3b521b0f",
+      "hostId": "3d6e7ee5-54ca-4b95-9866-f3264baa1062",
+      "gamePin": "140157",
+      "title": "tes",
+      "questions": [
+        {
+          "question": "a",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 0
+        },
+        {
+          "question": "b",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 1
+        }
+      ],
+      "status": "waiting",
+      "players": [],
+      "createdAt": "2025-04-06T19:03:02.668Z"
+    },
+    {
+      "id": "7b6153b2-d218-49ff-a1fa-fdc7df6c56b6",
+      "hostId": "drMsi0xq4QybcFEPAAAP",
+      "pinCode": "140157",
+      "gamePin": "140157",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:03:02.765Z"
+    },
+    {
+      "id": "ed6ffb82-8475-4002-9b2d-ccd1698cfb3a",
+      "hostId": "drMsi0xq4QybcFEPAAAP",
+      "pinCode": "140157",
+      "gamePin": "140157",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:03:02.768Z"
+    },
+    {
+      "id": "1a462b52-1179-4127-85da-91516da9a3e2",
+      "hostId": "drMsi0xq4QybcFEPAAAP",
+      "pinCode": "140157",
+      "gamePin": "140157",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:06:43.717Z"
+    },
+    {
+      "id": "0079a306-626f-488d-8f3a-4edef461805c",
+      "hostId": "drMsi0xq4QybcFEPAAAP",
+      "pinCode": "140157",
+      "gamePin": "140157",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:06:43.724Z"
+    },
+    {
+      "id": "4444d56f-5c64-473e-903e-382d7d43b5e5",
+      "quizId": "7bdad9b5-d332-4264-beeb-c0ffc52c1368",
+      "hostId": "3d6e7ee5-54ca-4b95-9866-f3264baa1062",
+      "gamePin": "733104",
+      "title": "test quiz",
+      "questions": [
+        {
+          "question": "what is css",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "css",
+            "cs",
+            "c",
+            "csssss"
+          ],
+          "correctAnswer": 0
+        },
+        {
+          "question": "what is html",
+          "image": "https://cloud2data.com/wp-content/uploads/2023/01/HTML-CSS-Review.png",
+          "timeLimit": 30,
+          "answers": [
+            "html",
+            "ht",
+            "htm",
+            "h"
+          ],
+          "correctAnswer": 0
+        }
+      ],
+      "status": "waiting",
+      "players": [],
+      "createdAt": "2025-04-06T19:11:38.850Z"
+    },
+    {
+      "id": "875ff986-de6f-485c-b86d-03b456eac3c3",
+      "hostId": "rxrYvdpsrmKfQSG6AAAM",
+      "pinCode": "733104",
+      "gamePin": "733104",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:11:38.900Z"
+    },
+    {
+      "id": "0380f5ab-1ad9-41a6-84c6-5b894f80e103",
+      "hostId": "rxrYvdpsrmKfQSG6AAAM",
+      "pinCode": "733104",
+      "gamePin": "733104",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:11:38.903Z"
+    },
+    {
+      "id": "826dc605-c16e-4bcc-bd35-318711185c36",
+      "quizId": "67bbaa01-b233-4665-8be5-701b3b521b0f",
+      "hostId": "3d6e7ee5-54ca-4b95-9866-f3264baa1062",
+      "gamePin": "932650",
+      "title": "tes",
+      "questions": [
+        {
+          "question": "a",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 0
+        },
+        {
+          "question": "b",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 1
+        }
+      ],
+      "status": "waiting",
+      "players": [],
+      "createdAt": "2025-04-06T19:19:23.633Z"
+    },
+    {
+      "id": "cd6be609-ab6a-4d6f-ac76-4150042ec3b8",
+      "quizId": "67bbaa01-b233-4665-8be5-701b3b521b0f",
+      "hostId": "3d6e7ee5-54ca-4b95-9866-f3264baa1062",
+      "gamePin": "439809",
+      "title": "tes",
+      "questions": [
+        {
+          "question": "a",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 0
+        },
+        {
+          "question": "b",
+          "image": "",
+          "timeLimit": 30,
+          "answers": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "correctAnswer": 1
+        }
+      ],
+      "status": "waiting",
+      "players": [],
+      "createdAt": "2025-04-06T19:19:31.333Z"
+    },
+    {
+      "id": "8b450ae2-905c-4896-9556-67fcb7c1d9c3",
+      "hostId": "ASkYADrYE9E85wVnAAAM",
+      "pinCode": "439809",
+      "gamePin": "439809",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:19:31.407Z"
+    },
+    {
+      "id": "7b4157ab-91eb-4410-a998-0fbb8e92744e",
+      "hostId": "ASkYADrYE9E85wVnAAAM",
+      "pinCode": "439809",
+      "gamePin": "439809",
+      "status": "waiting",
+      "players": [],
+      "questions": [
+        {
+          "question": "What is the capital of France?",
+          "answers": [
+            "London",
+            "Paris",
+            "Berlin",
+            "Madrid"
+          ],
+          "solution": 1,
+          "cooldown": 5,
+          "time": 15
+        }
+      ],
+      "title": "Quiz Game",
+      "createdAt": "2025-04-06T19:19:31.409Z"
     }
   ],
   "scores": []

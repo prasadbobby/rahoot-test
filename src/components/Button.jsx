@@ -2,15 +2,17 @@
 import clsx from "clsx"
 import { motion } from "framer-motion"
 
-export default function Button({ children, className, ...otherProps }) {
+export default function Button({ children, className, disabled, ...otherProps }) {
   return (
     <motion.button
       className={clsx(
         "btn-shadow rounded-md bg-primary p-2 text-lg font-semibold text-white transition-all",
+        disabled && "opacity-70 cursor-not-allowed",
         className,
       )}
-      whileTap={{ scale: 0.97 }}
-      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: disabled ? 1 : 0.97 }}
+      whileHover={{ scale: disabled ? 1 : 1.02 }}
+      disabled={disabled}
       {...otherProps}
     >
       <span>{children}</span>

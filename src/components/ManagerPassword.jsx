@@ -3,7 +3,7 @@ import Image from "next/image"
 import Form from "@/components/Form"
 import Button from "@/components/Button"
 import Input from "@/components/Input"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { socket } from "@/context/socket"
 import logo from "@/assets/logo.svg"
 import toast from "react-hot-toast"
@@ -16,8 +16,16 @@ export default function ManagerPassword({ onSubmit, loading }) {
     if (onSubmit) {
       onSubmit(password);
     } else {
-      // Fallback to direct socket emission if no onSubmit provided
-      socket.emit("manager:createRoom", password);
+      // Generate a random PIN
+      const pin = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Emit room creation with PIN
+      socket.emit("manager:hostRoom", { 
+        pin,
+        token: localStorage.getItem('rahootAuthToken') || "anonymous"
+      });
+      
+      toast.success(`Creating room with PIN: ${pin}`);
     }
   }
 
@@ -26,18 +34,6 @@ export default function ManagerPassword({ onSubmit, loading }) {
       handleCreate()
     }
   }
-
-  useEffect(() => {
-    const handleError = (message) => {
-      toast.error(message);
-    };
-    
-    socket.on("game:errorMessage", handleError);
-
-    return () => {
-      socket.off("game:errorMessage", handleError);
-    }
-  }, [])
 
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center">
