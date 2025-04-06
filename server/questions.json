@@ -1,0 +1,32 @@
+{
+  "password": "PASSWORD",
+  "subject": "Sample Quiz",
+  "questions": [
+    {
+      "question": "what is css?",
+      "answers": [
+        "csss",
+        "css",
+        "css",
+        "cssssss"
+      ],
+      "image": "",
+      "solution": 2,
+      "cooldown": 5,
+      "time": 15
+    },
+    {
+      "question": "what is html",
+      "answers": [
+        "hyper",
+        "hyper text",
+        "text ",
+        "test"
+      ],
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrZFuleMLE-NEbghFpEav3M8GwxKR4YnpYlA&s",
+      "solution": 0,
+      "cooldown": 5,
+      "time": 15
+    }
+  ]
+}
