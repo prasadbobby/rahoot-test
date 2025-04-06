@@ -1,82 +1,84 @@
-// src/context/player.jsx
 import { createContext, useContext, useReducer, useEffect } from "react";
 import { toast } from "react-hot-toast";
 
-// Create context
 const PlayerContext = createContext();
 
-// Reducer
 export function playerReducer(state, action) {
+  console.group("Player Reducer");
+  console.log("Action Type:", action.type);
+  console.log("Payload:", action.payload);
+
   switch (action.type) {
     case "JOIN":
-      return { player: { ...state.player, room: action.payload } };
-    case "LOGIN":
-      return {
-        player: {
-          ...state.player,
-          username: action.payload,
-          points: 0,
-        },
+      const newState = { 
+        player: { 
+          username: action.payload.username,
+          room: action.payload.roomId,
+          gameInstance: action.payload.gameInstance,
+          points: 0
+        }
       };
-    case "UPDATE":
-      return { player: { ...state.player, ...action.payload } };
-    case "LOGOUT":
-      return { player: null };
-    case "RESET_ROOM":
-      return { 
-        player: state.player ? { 
-          ...state.player, 
-          room: null,
-          points: 0 
-        } : null 
-      };
+      
+      console.log("New Player State:", newState);
+      
+      // Persist to localStorage
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rahootPlayer', JSON.stringify(newState.player));
+        }
+      } catch (error) {
+        console.error("Error saving player to localStorage:", error);
+      }
+      
+      console.groupEnd();
+      return newState;
+    
+    // Other cases remain the same
     default:
+      console.groupEnd();
       return state;
   }
 }
-
-// Provider
 export function PlayerContextProvider({ children }) {
-  // Initialize with empty state
-  const [state, dispatch] = useReducer(playerReducer, {
-    player: null,
-  });
+  const initialState = { 
+    player: null 
+  };
+
+  const [state, dispatch] = useReducer(playerReducer, initialState);
   
-  // Load from localStorage only on client-side
+  // Load player from localStorage on client-side
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
-        const savedPlayer = localStorage.getItem('rahootPlayer');
-        if (savedPlayer) {
-          const parsedPlayer = JSON.parse(savedPlayer);
-          dispatch({ type: 'UPDATE', payload: parsedPlayer });
-          console.log("Loaded player data:", parsedPlayer);
+        const storedPlayer = localStorage.getItem('rahootPlayer');
+        console.log("Stored Player Raw:", storedPlayer);
+        
+        if (storedPlayer) {
+          try {
+            const parsedPlayer = JSON.parse(storedPlayer);
+            console.log("Parsed Player:", parsedPlayer);
+            
+            // More robust state restoration
+            if (parsedPlayer.gameInstance && parsedPlayer.gameInstance.pinCode) {
+              dispatch({ 
+                type: "JOIN", 
+                payload: {
+                  username: parsedPlayer.username,
+                  roomId: parsedPlayer.gameInstance.pinCode,
+                  gameInstance: parsedPlayer.gameInstance
+                }
+              });
+            }
+          } catch (parseError) {
+            console.error("Error parsing stored player:", parseError);
+            localStorage.removeItem('rahootPlayer');
+          }
         }
       }
     } catch (error) {
       console.error("Error loading player from localStorage:", error);
     }
   }, []);
-  
-  // Save to localStorage when state changes (client-side only)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (state.player) {
-        try {
-          localStorage.setItem('rahootPlayer', JSON.stringify(state.player));
-          console.log("Saved player data:", state.player);
-        } catch (error) {
-          console.error("Error saving to localStorage:", error);
-        }
-      } else {
-        try {
-          localStorage.removeItem('rahootPlayer');
-        } catch (error) {
-          console.error("Error removing from localStorage:", error);
-        }
-      }
-    }
-  }, [state.player]);
 
   return (
     <PlayerContext.Provider
@@ -89,8 +91,6 @@ export function PlayerContextProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
-// Hook
 export function usePlayerContext() {
   const context = useContext(PlayerContext);
   

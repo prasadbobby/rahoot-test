@@ -113,7 +113,6 @@ export default function Manager() {
   }, [connected, state.created]);
 
   const handleCreate = () => {
-    // Check if already created to prevent duplicate requests
     if (state.created) {
       toast(`Game room already created with PIN: ${state.status.data?.inviteCode}`, {
         icon: 'ℹ️',
@@ -129,8 +128,14 @@ export default function Manager() {
     
     setLoading(true);
     
-    console.log("Emitting manager:createRoom event");
-    socket.emit("manager:createRoom", localStorage.getItem('rahootAuthToken') || "anonymous");
+    // Generate a 6-digit PIN
+    const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    console.log("Emitting manager:hostRoom with PIN:", gamePin);
+    socket.emit("manager:hostRoom", { 
+      pin: gamePin,
+      token: localStorage.getItem('rahootAuthToken') || "anonymous"
+    });
     
     // Set a timeout in case of no response
     setTimeout(() => {

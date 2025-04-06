@@ -19,6 +19,8 @@ export function SocketContextProvider({ children }) {
   const socketRef = useRef(null);
   
   useEffect(() => {
+    console.log("Socket Connection Attempt:", connectionAttempts);
+    console.log("Current Connection Status:", connected);
     // Initialize socket connection only on client side
     if (typeof window === 'undefined') return;
     

@@ -46,15 +46,14 @@ function gameReducer(state, action) {
         loading: false
       };
     
-    case 'JOIN_GAME':
-      return {
-        ...state,
-        gameInstance: action.payload,
-        gamePin: action.payload.pinCode,
-        status: 'waiting',
-        hostView: false,
-        loading: false
-      };
+      case 'JOIN_GAME':
+        return {
+          ...state,
+          gameInstance: action.payload.gameInstance,
+          players: action.payload.players,
+          loading: false,
+          status: 'waiting'
+        };
     
     case 'UPDATE_PLAYERS':
       return {
@@ -186,7 +185,6 @@ export function GameProvider({ children }) {
     };
   }, [socket]);
   
-  // Join a game
   const joinGame = async (gamePin, username) => {
     try {
       if (!socket || !connected) {
@@ -197,10 +195,28 @@ export function GameProvider({ children }) {
       dispatch({ type: 'LOADING' });
       
       return new Promise((resolve) => {
-        // Set up response handler
+        const joinTimeout = setTimeout(() => {
+          socket.off('player:join-response');
+          toast.error('Join request timed out. Please try again.');
+          dispatch({ type: 'RESET_GAME' });
+          resolve(false);
+        }, 15000);
+        
         socket.once('player:join-response', (response) => {
+          clearTimeout(joinTimeout);
+          
           if (response.success) {
-            dispatch({ type: 'JOIN_GAME', payload: response.gameInstance });
+            dispatch({ 
+              type: 'JOIN_GAME', 
+              payload: {
+                gameInstance: {
+                  pinCode: response.gameInstance.pinCode,
+                  title: response.gameInstance.title,
+                  questions: response.gameInstance.questions
+                },
+                players: response.gameInstance.players
+              }
+            });
             toast.success(`Joined game as ${username}`);
             resolve(true);
           } else {
@@ -210,16 +226,11 @@ export function GameProvider({ children }) {
           }
         });
         
-        // Send join request
-        socket.emit('player:join', { gamePin, username });
-        
-        // Set timeout for response
-        setTimeout(() => {
-          socket.off('player:join-response');
-          toast.error('Join request timed out');
-          dispatch({ type: 'RESET_GAME' });
-          resolve(false);
-        }, 10000); // Increased timeout
+        socket.emit('player:join', { 
+          gamePin, 
+          username,
+          timestamp: Date.now() 
+        });
       });
     } catch (error) {
       console.error('Error joining game:', error);
@@ -228,7 +239,6 @@ export function GameProvider({ children }) {
       return false;
     }
   };
-  
   // Start game (host)
   const startGame = () => {
     if (!socket || !connected || !state.gameInstance || !state.hostView) {

@@ -1,19 +1,16 @@
-// socket/server.js
+// server.js
 import { Server } from "socket.io";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
-import Manager from "./roles/manager.js";
-import Player from "./roles/player.js";
-import { abortCooldown } from "./utils/cooldown.js";
-import deepClone from "./utils/deepClone.js";
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DB_PATH = path.join(__dirname, '../server/db/data.json');
+const DB_PATH = path.join(__dirname, 'db/data.json');
 
-// Check if directory exists and create if not
+// Ensure database directory exists
 function ensureDbDirectoryExists() {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) {
@@ -68,395 +65,224 @@ function writeDB(data) {
   }
 }
 
-// Default config
-const DEFAULT_CONFIG = {
+// Default quiz configuration
+const DEFAULT_QUIZ = {
   questions: [
     {
       question: "What is the capital of France?",
       answers: ["London", "Paris", "Berlin", "Madrid"],
       solution: 1,
       cooldown: 5,
-      time: 15,
+      time: 15
     }
   ]
 };
 
-// Load games from database
-const db = readDB();
-const gameConfig = {
-  questions: db.games && db.games.length > 0 
-    ? db.games[0].questions || DEFAULT_CONFIG.questions
-    : DEFAULT_CONFIG.questions
-};
-
-// Initial game state
-let gameState = {
-  started: false,
-  players: [],
-  playersAnswer: [],
-  manager: null,
-  room: null,
-  currentQuestion: 0,
-  roundStartTime: 0,
-  subject: "Quiz Game",
-  ...gameConfig
-};
-
 const PORT = process.env.PORT || 5505;
 
-// Configure socket.io with better transport options
+// Configure Socket.IO
 const io = new Server({
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
+    methods: ["GET", "POST"]
   },
-  transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  allowEIO3: true,
-  perMessageDeflate: false
+  transports: ['websocket', 'polling']
 });
 
 console.log(`Socket server running on port ${PORT}`);
 io.listen(PORT);
 
-// Verify JWT token
-const verifyToken = (token) => {
-  try {
-    console.log("Verifying token:", token ? token.substring(0, 10) + '...' : 'undefined');
-    return jwt.verify(token, process.env.JWT_SECRET || 'jwt-secret');
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return null;
-  }
-};
-
-// Check if user is admin
-const isAdmin = (token) => {
-  try {
-    console.log("Checking admin status for token:", token ? token.substring(0, 10) + '...' : 'undefined');
-    const db = readDB();
-    if (!db) {
-      console.log("DB read failed");
-      return false;
-    }
-    
-    const decoded = verifyToken(token);
-    console.log("Decoded token:", decoded);
-    if (!decoded) return false;
-    
-    // Check if the token has provider info
-    const userId = decoded.id;
-    const provider = decoded.provider || 'standard';
-    
-    console.log("Checking user:", userId, "Provider:", provider);
-    
-    if (provider === 'google') {
-      // Check Google users
-      const googleUser = db.googleUsers.find(u => u.id === userId);
-      console.log("Google user:", googleUser);
-      return googleUser && googleUser.role === 'admin';
-    } else {
-      // Check standard users
-      const user = db.users.find(u => u.id === userId);
-      console.log("Standard user:", user);
-      // For development, consider all users as admin temporarily
-      return user && (user.role === 'admin' || true);
-    }
-  } catch (error) {
-    console.error('Admin check error:', error);
-    return false;
-  }
-};
-
-// Add connection monitoring
+// Socket connection handler
 io.on("connection", (socket) => {
-  console.log(`A user connected ${socket.id}`);
+  console.log(`User connected: ${socket.id}`);
 
-  // Monitor socket connection events
-  socket.on("disconnect", (reason) => {
-    console.log(`User disconnected ${socket.id}, reason: ${reason}`);
-    
-    // Handle manager disconnection gracefully
-    if (gameState.manager === socket.id) {
-      console.log(`Manager ${socket.id} disconnected, preserving game state`);
-      // Don't reset the game immediately to allow reconnection
-      
-      // Set a timeout to reset if no reconnection
-      setTimeout(() => {
-        if (gameState.manager === socket.id) {
-          console.log("Manager didn't reconnect, resetting game");
-          io.to(gameState.room).emit("game:reset");
-          gameState = {
-            started: false,
-            players: [],
-            playersAnswer: [],
-            manager: null,
-            room: null,
-            currentQuestion: 0,
-            roundStartTime: 0,
-            subject: "Quiz Game",
-            ...gameConfig
-          };
-          abortCooldown();
-        }
-      }, 30000); // 30 second grace period
-      
-      return;
-    }
-
-    const player = gameState.players.find((p) => p.id === socket.id);
-
-    if (player) {
-      gameState.players = gameState.players.filter((p) => p.id !== socket.id);
-      if (gameState.manager) {
-        socket.to(gameState.manager).emit("manager:removePlayer", player.id);
-      }
-    }
-  });
-
-  // Add a health check endpoint
-  socket.on('ping', (callback) => {
-    if (typeof callback === 'function') {
-      callback('pong');
-    }
-  });
-
-  // Player events
+  // Check room availability
   socket.on("player:checkRoom", (roomId) => {
     console.log("Checking room:", roomId);
-    Player.checkRoom(gameState, io, socket, roomId);
+    
+    const db = readDB();
+    const gameInstance = db.gameInstances.find(
+      instance => instance.pinCode === roomId && 
+      (instance.status === 'waiting' || instance.status === 'created')
+    );
+    
+    if (gameInstance) {
+      socket.emit("game:successRoom", roomId);
+    } else {
+      socket.emit("game:errorMessage", "Room not found or game already started");
+    }
   });
 
-  socket.on("player:join", (player) => {
-    console.log("Player joining:", player);
-    Player.join(gameState, io, socket, player);
-  });
-
-  socket.on("player:selectedAnswer", (answerKey) => {
-    console.log("Player selected answer:", answerKey);
-    Player.selectedAnswer(gameState, io, socket, answerKey);
-  });
-
-  // Manager events - require auth token
-  socket.on("manager:createRoom", (token) => {
-    console.log("Create room request with token:", token ? "provided" : "not provided");
-    // For development purposes, allow room creation regardless of token
-    Manager.createRoom(gameState, io, socket);
-    console.log("Room created:", gameState.room);
-  });
+  socket.on("player:join", (data) => {
+    console.log("Player join request:", data);
+    
+    const db = readDB();
+    
+    // Log all game instances for debugging
+    console.log("All Game Instances:", db.gameInstances);
+    
+    // Find game instance with more flexible matching
+    const gameInstance = db.gameInstances.find(
+      instance => 
+        (instance.pinCode === data.gamePin || instance.gamePin === data.gamePin) && 
+        ['waiting', 'created', 'lobby'].includes(instance.status)
+    );
   
-  socket.on("manager:kickPlayer", (data) => {
-    if (typeof data === 'object' && data.token && data.playerId) {
-      // New format with token
-      const { token, playerId } = data;
-      console.log("Kick player (with token):", playerId);
-      Manager.kickPlayer(gameState, io, socket, playerId);
-    } else {
-      // Old format - assumes socket is the manager
-      const playerId = data;
-      console.log("Kick player (without token):", playerId);
-      if (gameState.manager === socket.id) {
-        Manager.kickPlayer(gameState, io, socket, playerId);
-      } else {
-        socket.emit("game:errorMessage", "Unauthorized: Manager access required");
-      }
-    }
-  });
-
-  socket.on("manager:startGame", (token) => {
-    console.log("Start game request");
-    // Allow game start if socket is manager or if token is provided
-    if (gameState.manager === socket.id) {
-      console.log("Starting game as manager");
-      Manager.startGame(gameState, io, socket);
-    } else {
-      socket.emit("game:errorMessage", "Unauthorized: Manager access required");
-    }
-  });
-
-  socket.on("manager:abortQuiz", (token) => {
-    console.log("Abort quiz request");
-    // Allow abort if socket is manager or if token is provided
-    if (gameState.manager === socket.id) {
-      console.log("Aborting quiz as manager");
-      Manager.abortQuiz(gameState, io, socket);
-    } else {
-      socket.emit("game:errorMessage", "Unauthorized: Manager access required");
-    }
-  });
-
-  socket.on("manager:nextQuestion", (token) => {
-    console.log("Next question request");
-    // Allow next question if socket is manager or if token is provided
-    if (gameState.manager === socket.id) {
-      console.log("Showing next question as manager");
-      Manager.nextQuestion(gameState, io, socket);
-    } else {
-      socket.emit("game:errorMessage", "Unauthorized: Manager access required");
-    }
-  });
-
-  socket.on("manager:showLeaderboard", (token) => {
-    console.log("Show leaderboard request");
-    // Allow showing leaderboard if socket is manager or if token is provided
-    if (gameState.manager === socket.id) {
-      console.log("Showing leaderboard as manager");
-      Manager.showLoaderboard(gameState, io, socket);
-    } else {
-      socket.emit("game:errorMessage", "Unauthorized: Manager access required");
-    }
-  });
-
-  // Quiz management events
-  socket.on("host:create-game", (data) => {
-    const { token, gameData } = data;
-    console.log("Host create game request");
-    
-    // Create a new game instance (bypass token check for development)
-    const gameInstance = {
-      id: Date.now().toString(),
-      hostId: socket.id,
-      pinCode: Math.floor(100000 + Math.random() * 900000).toString(),
-      players: [],
-      questions: gameData?.questions || DEFAULT_CONFIG.questions,
-      status: 'waiting'
-    };
-    
-    // Save to game state
-    gameState.questions = gameInstance.questions;
-    gameState.room = gameInstance.pinCode;
-    gameState.manager = socket.id;
-    gameState.subject = gameData?.title || "Quiz Game";
-    
-    // Join room
-    socket.join(gameInstance.pinCode);
-    
-    // Emit response
-    socket.emit("host:create-game-response", {
-      success: true,
-      gameInstance
-    });
-    
-    console.log("Game instance created:", gameInstance.pinCode);
-  });
-
-  // Reset game
-  socket.on("manager:resetGame", (token) => {
-    console.log("Reset game request");
-    if (gameState.manager === socket.id) {
-      console.log("Resetting game");
-      io.to(gameState.room).emit("game:reset");
-      
-      // Reset the game state but keep the manager
-      const managerId = socket.id;
-      
-      gameState = {
-        started: false,
-        players: [],
-        playersAnswer: [],
-        manager: managerId,
-        room: null,
-        currentQuestion: 0,
-        roundStartTime: 0,
-        subject: "Quiz Game",
-        ...gameConfig
-      };
-      
-      abortCooldown();
-      
-      socket.emit("game:status", {
-        name: "SHOW_ROOM",
-        data: {
-          text: "Waiting for players to join...",
-        },
+    if (!gameInstance) {
+      console.error(`No game instance found for PIN: ${data.gamePin}`);
+      socket.emit("player:join-response", {
+        success: false,
+        message: "Game room not found or already started"
       });
-    } else {
-      socket.emit("game:errorMessage", "Unauthorized: Admin or manager access required");
-    }
-  });
-
-// Add this event handler to the io.on("connection") block in server/server.js
-socket.on("manager:hostRoom", (data) => {
-  try {
-    const { token, pin } = data;
-    console.log(`Host room request with pin: ${pin}, token: ${token ? "provided" : "not provided"}`);
-    
-    // Check if game is already created with another manager
-    if (gameState.manager && gameState.manager !== socket.id && gameState.room) {
-      console.log(`Another manager ${gameState.manager} is already managing room ${gameState.room}`);
-      socket.emit("manager:hostError", "Another manager is already hosting a room");
       return;
     }
-    
-    // If the socket already has a room, check if it matches the requested pin
-    if (gameState.manager === socket.id && gameState.room) {
-      if (gameState.room === pin) {
-        console.log(`Socket ${socket.id} already hosting room ${gameState.room}`);
-        socket.emit("manager:hostingRoom", gameState.room);
-        
-        // Send the current game state to ensure UI is up to date
-        if (gameState.started) {
-          // Game is already in progress, send the current state
-          socket.emit("game:status", {
-            name: "SELECT_ANSWER",
-            data: {
-              question: gameState.questions[gameState.currentQuestion].question,
-              answers: gameState.questions[gameState.currentQuestion].answers,
-              image: gameState.questions[gameState.currentQuestion].image,
-              time: gameState.questions[gameState.currentQuestion].time,
-              totalPlayer: gameState.players.length,
-            },
-          });
-        } else {
-          // Game is in waiting state
-          socket.emit("game:status", {
-            name: "SHOW_ROOM",
-            data: {
-              text: "Waiting for players to join...",
-              inviteCode: gameState.room,
-            },
-          });
-        }
-        
-        return;
-      } else {
-        console.log(`Socket ${socket.id} already hosting room ${gameState.room}, but wants to host ${pin}`);
-        socket.emit("manager:hostError", "You are already hosting a different room");
-        return;
-      }
+  
+    // Find associated game
+    const game = db.games.find(g => g.id === gameInstance.quizId);
+  
+    if (!game) {
+      console.error(`No game found for QuizId: ${gameInstance.quizId}`);
+      socket.emit("player:join-response", {
+        success: false,
+        message: "Associated game not found"
+      });
+      return;
     }
+  
+    // Check for duplicate username
+    const isDuplicateUsername = (gameInstance.players || []).some(
+      player => player.username === data.username
+    );
+  
+    if (isDuplicateUsername) {
+      socket.emit("player:join-response", {
+        success: false,
+        message: "Username already exists in this game"
+      });
+      return;
+    }
+  
+    // Create new player
+    const newPlayer = {
+      id: socket.id,
+      username: data.username,
+      score: 0,
+      answers: []
+    };
+  
+    // Update game instance
+    gameInstance.players = gameInstance.players || [];
+    gameInstance.players.push(newPlayer);
+    gameInstance.status = 'waiting';
+  
+    // Update database
+    const instanceIndex = db.gameInstances.findIndex(
+      instance => instance.pinCode === data.gamePin || instance.gamePin === data.gamePin
+    );
     
-    // Create a new room with the specified PIN
-    gameState.room = pin;
-    gameState.manager = socket.id;
-    gameState.started = false;
-    gameState.players = [];
-    gameState.playersAnswer = [];
-    gameState.currentQuestion = 0;
+    if (instanceIndex !== -1) {
+      db.gameInstances[instanceIndex] = gameInstance;
+      writeDB(db);
+    }
+  
+    // Join socket room
+    socket.join(data.gamePin);
+  
+    // Respond to player with full game details
+    socket.emit("player:join-response", {
+      success: true,
+      gameInstance: {
+        pinCode: gameInstance.pinCode || gameInstance.gamePin,
+        title: game.title,
+        questions: game.questions,
+        players: gameInstance.players
+      }
+    });
+  
+    // Notify other players in the room
+    socket.to(data.gamePin).emit("manager:newPlayer", newPlayer);
+  
+    console.log(`Player ${data.username} joined game ${data.gamePin}`);
+  });
+
+  socket.on("manager:hostRoom", (data) => {
+    console.log("Hosting room with data:", data);
     
-    // Join the socket to the room
-    socket.join(pin);
+    const db = readDB();
     
-    // Notify the client
-    socket.emit("manager:hostingRoom", pin);
+    // Log all games for debugging
+    console.log("All Games:", db.games);
     
-    // Send initial game state
+    // Decode the token to get the host ID
+    let hostId;
+    try {
+      const decoded = jwt.verify(data.token, process.env.JWT_SECRET || 'jwt-secret');
+      hostId = decoded.id;
+      console.log("Decoded Host ID:", hostId);
+    } catch (error) {
+      console.error("Token verification error:", error);
+    }
+  
+    // Find the game associated with this host
+    const hostGame = db.games.find(game => 
+      game.createdBy === hostId || 
+      // Fallback to the first game if no specific game found
+      (db.games.length > 0 ? db.games[0] : null)
+    );
+    
+    console.log("Found Host Game:", hostGame);
+  
+    if (!hostGame) {
+      console.error("No game found for host:", hostId);
+      socket.emit("manager:hostError", "No game found. Please create a quiz first.");
+      return;
+    }
+  
+    // Check for existing game with this PIN
+    const existingGame = db.gameInstances.find(
+      instance => instance.pinCode === data.pin || instance.gamePin === data.pin
+    );
+  
+    if (existingGame) {
+      socket.emit("manager:hostingRoom", existingGame.pinCode || existingGame.gamePin);
+      return;
+    }
+  
+    // Create new game instance with host's questions
+    const newGameInstance = {
+      id: uuidv4(),
+      quizId: hostGame.id,
+      gamePin: data.pin,
+      pinCode: data.pin, // Add both for compatibility
+      hostId: hostId || 'unknown',
+      status: 'created',
+      players: [],
+      questions: hostGame.questions,
+      title: hostGame.title,
+      createdAt: new Date().toISOString()
+    };
+  
+    // Add to database
+    db.gameInstances.push(newGameInstance);
+    writeDB(db);
+  
+    // Join room and emit events
+    socket.join(data.pin);
+    socket.emit("manager:hostingRoom", data.pin);
     socket.emit("game:status", {
       name: "SHOW_ROOM",
       data: {
         text: "Waiting for players to join...",
-        inviteCode: pin,
-      },
+        inviteCode: data.pin,
+        title: hostGame.title
+      }
     });
-    
-    console.log(`Room ${pin} created for manager ${socket.id}`);
-  } catch (error) {
-    console.error("Error in hostRoom handler:", error);
-    socket.emit("manager:hostError", error.message);
-  }
-});
+  
+    console.log(`Room created with PIN: ${data.pin}, Quiz: ${hostGame.title}`);
+  });
 
-
+  // Disconnect handler
+  socket.on("disconnect", () => {
+    console.log(`User disconnected: ${socket.id}`);
+  });
 });

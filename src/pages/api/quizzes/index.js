@@ -99,7 +99,14 @@ export default async function handler(req, res) {
         description,
         category: category || 'General',
         isPublic: !!isPublic,
-        questions,
+        questions: questions.map(q => ({
+          ...q,
+          // Ensure all required fields are present
+          id: uuidv4(), // Add unique ID
+          timeLimit: q.timeLimit || 30, // Default time limit
+          image: q.image || '', // Ensure image is always a string
+          correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0 // Default correct answer
+        })),
         createdBy: decoded.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
