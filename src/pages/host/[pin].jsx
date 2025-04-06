@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/context/auth';
-import { useSocket } from '@/context/socket';
+import { useSocketContext } from '@/context/socket';
 import { toast } from 'react-hot-toast';
 import { FiPlay, FiUsers, FiCopy } from 'react-icons/fi';
 
@@ -11,7 +11,7 @@ export default function HostGame() {
   const router = useRouter();
   const { pin } = router.query;
   const { user, isAuthenticated, loading, isAdmin } = useAuth();
-  const { socket, connected } = useSocket();
+  const { socket, connected, reconnect } = useSocketContext();
   
   const [players, setPlayers] = useState([]);
   const [gameState, setGameState] = useState('waiting'); // waiting, starting, active, reviewing, finished
@@ -20,6 +20,7 @@ export default function HostGame() {
   const [results, setResults] = useState(null);
   const [timer, setTimer] = useState(0);
   const [answersReceived, setAnswersReceived] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Redirect if not authenticated or not admin
   useEffect(() => {
@@ -33,79 +34,103 @@ export default function HostGame() {
   
   // Set up socket connection
   useEffect(() => {
-    if (!socket || !connected || !pin || !isAuthenticated) return;
+    // Only run this once when the component mounts and all dependencies are ready
+    if (!socket || !connected || !pin || !isAuthenticated || isInitialized) return;
     
+    console.log('Setting up connection for host with pin:', pin);
+    setIsInitialized(true);
+    
+    // Clear any existing listeners to prevent duplicates
+    socket.off('manager:inviteCode');
+    socket.off('game:errorMessage');
+    socket.off('manager:newPlayer');
+    socket.off('manager:removePlayer');
+    socket.off('manager:playerKicked');
+    socket.off('game:status');
+    socket.off('game:timer');
+    socket.off('game:playerAnswer');
+    
+    // Instead of creating a new room, we'll modify the server to support joining with a specific PIN
     const token = localStorage.getItem('rahootAuthToken');
     
-    // Create a room as the manager
-    socket.emit('manager:createRoom', token);
+    // Custom event for hosting a specific PIN
+    socket.emit('manager:hostRoom', { token, pin });
     
-    // Listen for the invite code (room code)
-    socket.once('manager:inviteCode', (inviteCode) => {
-      // Verify that the invite code matches our pin
-      if (inviteCode !== pin) {
-        console.error('PIN mismatch:', inviteCode, pin);
-        toast.error('Error creating game room');
-        router.push('/quizzes');
+    // Listen for confirmation that we're hosting the room
+    socket.on('manager:hostingRoom', (roomPin) => {
+      if (roomPin === pin) {
+        toast.success(`Hosting game with PIN: ${pin}`);
+        
+        // Listen for game status updates
+        socket.on('game:status', (status) => {
+          console.log('Received game status:', status.name);
+          setGameState(status.name);
+          
+          if (status.name === 'SHOW_QUESTION') {
+            setCurrentQuestion(status.data.question);
+            setCurrentQuestionIndex(status.data.currentQuestion);
+            setTimer(status.data.time);
+            setAnswersReceived(0);
+          } else if (status.name === 'SELECT_ANSWER') {
+            setAnswersReceived(0);
+          } else if (status.name === 'SHOW_RESPONSES') {
+            setResults(status.data);
+          } else if (status.name === 'SHOW_LEADERBOARD') {
+            setResults(status.data);
+          } else if (status.name === 'FINISH') {
+            setResults(status.data);
+          }
+        });
+        
+        // Listen for error messages
+        socket.on('game:errorMessage', (message) => {
+          toast.error(message);
+        });
+        
+        // Listen for new players
+        socket.on('manager:newPlayer', (player) => {
+          console.log('New player joined:', player);
+          setPlayers(prev => [...prev, player]);
+          toast.success(`${player.username} joined the game`);
+        });
+        
+        // Listen for player removal
+        socket.on('manager:removePlayer', (playerId) => {
+          setPlayers(prev => prev.filter(p => p.id !== playerId));
+        });
+        
+        // Listen for player kicked
+        socket.on('manager:playerKicked', (playerId) => {
+          setPlayers(prev => prev.filter(p => p.id !== playerId));
+        });
+        
+        // Listen for timer updates
+        socket.on('game:timer', (seconds) => {
+          setTimer(seconds);
+        });
+        
+        // Listen for answer count updates
+        socket.on('game:playerAnswer', (count) => {
+          setAnswersReceived(count);
+        });
       } else {
-        toast.success(`Game room created with PIN: ${pin}`);
+        console.error('PIN mismatch on hosting confirmation:', roomPin, pin);
+        toast.error(`Error hosting game: PIN mismatch`);
+        router.push('/dashboard');
       }
     });
     
-    // Listen for error messages
-    socket.on('game:errorMessage', (message) => {
-      toast.error(message);
+    // Listen for errors during hosting
+    socket.on('manager:hostError', (error) => {
+      console.error('Error hosting room:', error);
+      toast.error(`Error hosting game: ${error}`);
+      router.push('/dashboard');
     });
     
-    // Listen for new players
-    socket.on('manager:newPlayer', (player) => {
-      setPlayers(prev => [...prev, player]);
-      toast.success(`${player.username} joined the game`);
-    });
-    
-    // Listen for player removal
-    socket.on('manager:removePlayer', (playerId) => {
-      setPlayers(prev => prev.filter(p => p.id !== playerId));
-    });
-    
-    // Listen for player kicked
-    socket.on('manager:playerKicked', (playerId) => {
-      setPlayers(prev => prev.filter(p => p.id !== playerId));
-    });
-    
-    // Listen for game status updates
-    socket.on('game:status', (status) => {
-      setGameState(status.name);
-      
-      if (status.name === 'SHOW_QUESTION') {
-        setCurrentQuestion(status.data.question);
-        setCurrentQuestionIndex(status.data.currentQuestion);
-        setTimer(status.data.time);
-        setAnswersReceived(0);
-      } else if (status.name === 'SELECT_ANSWER') {
-        setAnswersReceived(0);
-      } else if (status.name === 'SHOW_RESPONSES') {
-        setResults(status.data);
-      } else if (status.name === 'SHOW_LEADERBOARD') {
-        setResults(status.data);
-      } else if (status.name === 'FINISH') {
-        setResults(status.data);
-      }
-    });
-    
-    // Listen for timer updates
-    socket.on('game:timer', (seconds) => {
-      setTimer(seconds);
-    });
-    
-    // Listen for answer count updates
-    socket.on('game:playerAnswer', (count) => {
-      setAnswersReceived(count);
-    });
-    
-    // Clean up listeners on unmount
+    // Clean up listeners when component unmounts
     return () => {
-      socket.off('manager:inviteCode');
+      socket.off('manager:hostingRoom');
+      socket.off('manager:hostError');
       socket.off('game:errorMessage');
       socket.off('manager:newPlayer');
       socket.off('manager:removePlayer');
@@ -114,7 +139,17 @@ export default function HostGame() {
       socket.off('game:timer');
       socket.off('game:playerAnswer');
     };
-  }, [socket, connected, pin, isAuthenticated, router]);
+  }, [socket, connected, pin, isAuthenticated, router, isInitialized]);
+  
+  // Show reconnection UI if connection is lost
+  useEffect(() => {
+    if (!connected && isAuthenticated && isInitialized) {
+      toast.error('Connection to server lost. Attempting to reconnect...');
+      if (reconnect) {
+        reconnect();
+      }
+    }
+  }, [connected, isAuthenticated, reconnect, isInitialized]);
   
   // Start the game
   const startGame = () => {
@@ -188,6 +223,36 @@ export default function HostGame() {
       <Layout title="Hosting Game">
         <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // Show reconnection UI if not connected
+  if (!connected && isInitialized) {
+    return (
+      <Layout title="Connection Lost" showHeader={false} showFooter={false}>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-primary-dark to-primary p-6">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-center mb-4">Connection Lost</h2>
+            <p className="text-gray-600 mb-6 text-center">
+              Lost connection to the game server. Your game session may be affected.
+            </p>
+            <div className="flex flex-col space-y-4">
+              <button
+                onClick={reconnect}
+                className="w-full py-3 px-4 bg-primary text-white font-bold rounded-md hover:bg-primary-dark"
+              >
+                Reconnect
+              </button>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="w-full py-3 px-4 bg-gray-200 text-gray-800 font-bold rounded-md hover:bg-gray-300"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -305,7 +370,7 @@ export default function HostGame() {
                   )}
                   
                   <div className="grid grid-cols-2 gap-4 mt-8">
-                    {currentQuestion?.answers.map((answer, index) => (
+                    {currentQuestion?.answers?.map((answer, index) => (
                       <div
                         key={index}
                         className={`p-4 rounded-lg text-white font-medium ${
@@ -340,10 +405,10 @@ export default function HostGame() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 mb-8">
-                  {results?.answers.map((answer, index) => {
-                    const responseCount = results.responses[index] || 0;
-                    const totalResponses = Object.values(results.responses || {}).reduce((a, b) => a + b, 0);
-                    const percentage = totalResponses > 0 ? Math.round((responseCount / totalResponses) * 100) : 0;
+                  {results?.answers?.map((answer, index) => {
+                    const responseCount = results.responses?.[index] || 0;
+                    const totalResponses = Object.values(results.responses || {}).reduce((a, b) => a + b, 0) || 1;
+                    const percentage = Math.round((responseCount / totalResponses) * 100);
                     
                     return (
                       <div 
@@ -387,7 +452,7 @@ export default function HostGame() {
                 <div className="space-y-4 mb-8">
                   {results?.leaderboard?.map((player, index) => (
                     <div 
-                      key={player.id}
+                      key={player.id || index}
                       className="flex items-center bg-gray-100 p-4 rounded-lg"
                     >
                       <div className="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full font-bold mr-3">
@@ -416,7 +481,7 @@ export default function HostGame() {
                   <h3 className="text-xl font-medium mb-6">Top Players</h3>
                   
                   <div className="flex justify-center items-end space-x-8 mb-10">
-                    {results?.top[1] && (
+                    {results?.top?.[1] && (
                       <div className="flex flex-col items-center">
                         <div className="w-20 h-20 flex items-center justify-center bg-gray-300 rounded-full mb-2">
                           <span className="text-4xl font-bold">2</span>
@@ -428,7 +493,7 @@ export default function HostGame() {
                       </div>
                     )}
                     
-                    {results?.top[0] && (
+                    {results?.top?.[0] && (
                       <div className="flex flex-col items-center">
                         <div className="w-24 h-24 flex items-center justify-center bg-yellow-400 rounded-full mb-2">
                           <span className="text-5xl font-bold">1</span>
@@ -440,9 +505,9 @@ export default function HostGame() {
                       </div>
                     )}
                     
-                    {results?.top[2] && (
+                    {results?.top?.[2] && (
                       <div className="flex flex-col items-center">
-                        <div className="w-20 h-20 flex items-center justify-center bg-amber-700 rounded-full mb-2">
+                        <div className="w-20 h-20 flex items-center justify-center bg-amber-700 rounded-full mb-2 text-white">
                           <span className="text-4xl font-bold">3</span>
                         </div>
                         <div className="text-center">

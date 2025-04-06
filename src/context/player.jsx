@@ -1,5 +1,6 @@
 // src/context/player.jsx
 import { createContext, useContext, useReducer, useEffect } from "react";
+import { toast } from "react-hot-toast";
 
 // Create context
 const PlayerContext = createContext();
@@ -49,6 +50,7 @@ export function PlayerContextProvider({ children }) {
         if (savedPlayer) {
           const parsedPlayer = JSON.parse(savedPlayer);
           dispatch({ type: 'UPDATE', payload: parsedPlayer });
+          console.log("Loaded player data:", parsedPlayer);
         }
       }
     } catch (error) {
@@ -62,6 +64,7 @@ export function PlayerContextProvider({ children }) {
       if (state.player) {
         try {
           localStorage.setItem('rahootPlayer', JSON.stringify(state.player));
+          console.log("Saved player data:", state.player);
         } catch (error) {
           console.error("Error saving to localStorage:", error);
         }

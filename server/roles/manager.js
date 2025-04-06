@@ -7,19 +7,44 @@ import { startRound } from "../utils/round.js"
 
 const Manager = {
   createRoom: (game, io, socket) => {
-    if (game.manager || game.room) {
-      io.to(socket.id).emit("game:errorMessage", "Already managing a room")
-      return
+    try {
+      console.log(`Creating room for socket: ${socket.id}, existing manager: ${game.manager}`);
+      
+      // If socket already has a room, just return that room instead of error
+      if (game.manager === socket.id && game.room) {
+        console.log(`Socket ${socket.id} already has room ${game.room}, returning existing room`);
+        io.to(socket.id).emit("manager:inviteCode", game.room);
+        return;
+      }
+      
+      // If someone else is managing a room, then error
+      if (game.manager && game.manager !== socket.id) {
+        console.log(`Another socket ${game.manager} is already managing room ${game.room}`);
+        io.to(socket.id).emit("game:errorMessage", "Another user is already managing a room");
+        return;
+      }
+
+      let roomInvite = generateRoomId();
+      game.room = roomInvite;
+      game.manager = socket.id;
+
+      socket.join(roomInvite);
+      io.to(socket.id).emit("manager:inviteCode", roomInvite);
+      
+      // Send initial game status
+      io.to(socket.id).emit("game:status", {
+        name: "SHOW_ROOM",
+        data: {
+          text: "Waiting for players to join...",
+          inviteCode: roomInvite
+        },
+      });
+
+      console.log("New room created: " + roomInvite + " with manager: " + socket.id);
+    } catch (error) {
+      console.error("Error creating room:", error);
+      socket.emit("game:errorMessage", "Server error creating room: " + error.message);
     }
-
-    let roomInvite = generateRoomId()
-    game.room = roomInvite
-    game.manager = socket.id
-
-    socket.join(roomInvite)
-    io.to(socket.id).emit("manager:inviteCode", roomInvite)
-
-    console.log("New room created: " + roomInvite)
   },
 
   kickPlayer: (game, io, socket, playerId) => {

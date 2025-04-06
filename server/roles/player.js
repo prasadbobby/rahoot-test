@@ -4,6 +4,7 @@ import { inviteCodeValidator, usernameValidator } from "../validator.js"
 
 const Player = {
   checkRoom: async (game, io, socket, roomId) => {
+    console.log("Checking room:", roomId, "Game room:", game.room);
     try {
       await inviteCodeValidator.validate(roomId)
     } catch (error) {
@@ -17,9 +18,11 @@ const Player = {
     }
 
     socket.emit("game:successRoom", roomId)
+    console.log("Room check successful for:", roomId);
   },
 
   join: async (game, io, socket, player) => {
+    console.log("Player joining:", player, "Game room:", game.room);
     try {
       await usernameValidator.validate(player.username)
     } catch (error) {
@@ -57,6 +60,7 @@ const Player = {
     game.players.push(playerData)
 
     socket.emit("game:successJoin")
+    console.log("Player joined successfully:", playerData.username);
   },
 
   selectedAnswer: (game, io, socket, answerKey) => {

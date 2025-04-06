@@ -1,7 +1,7 @@
 // src/context/game.jsx
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { useSocket } from './socket';
+import { useSocketContext } from './socket';
 
 // Create context
 const GameContext = createContext();
@@ -122,7 +122,7 @@ function gameReducer(state, action) {
 // Provider
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-  const { socket, connected } = useSocket();
+  const { socket, connected } = useSocketContext();
   
   // Handle socket events
   useEffect(() => {
@@ -219,7 +219,7 @@ export function GameProvider({ children }) {
           toast.error('Join request timed out');
           dispatch({ type: 'RESET_GAME' });
           resolve(false);
-        }, 5000);
+        }, 10000); // Increased timeout
       });
     } catch (error) {
       console.error('Error joining game:', error);
@@ -342,7 +342,7 @@ export function GameProvider({ children }) {
           toast.error('Create game request timed out');
           dispatch({ type: 'RESET_GAME' });
           resolve(false);
-        }, 5000);
+        }, 10000); // Increased from 5000
       });
     } catch (error) {
       console.error('Error creating game instance:', error);
